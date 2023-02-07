@@ -1,11 +1,49 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import { Inter } from '@next/font/google'
-import styles from '@/styles/Home.module.css'
-
-const inter = Inter({ subsets: ['latin'] })
+import {
+  allPostsQuery,
+  createPostMutation,
+  deletePostMutation,
+  updatePostMutation,
+} from "@/graphql/Posts";
+import { useMutation, useQuery } from "@apollo/client";
+import { Inter } from "@next/font/google";
+import { Post } from "@prisma/client";
+import Head from "next/head";
+import Image from "next/image";
+import React from "react";
+const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
+  const [selected, setSelected] = React.useState<number | null>(null);
+  const [title, setTitle] = React.useState<string>("");
+  const [content, setContent] = React.useState<string>("");
+
+  const { data, loading, error } = useQuery(allPostsQuery);
+
+  const [
+    createPost,
+    { data: CreateDate, loading: CreateLoading, error: CreateError },
+  ] = useMutation(createPostMutation, {
+    refetchQueries: [{ query: allPostsQuery }],
+  });
+
+  const [
+    updatePost,
+    { data: UpdateData, loading: UpdateLoading, error: UpdateError },
+  ] = useMutation(updatePostMutation, {
+    refetchQueries: [{ query: allPostsQuery }],
+  });
+  const [
+    deletePost,
+    { data: DeleteData, loading: DeleteLoading, error: DeleteError },
+  ] = useMutation(deletePostMutation, {
+    refetchQueries: [{ query: allPostsQuery }],
+  });
+
+  const postId = selected;
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
   return (
     <>
       <Head>
@@ -14,110 +52,108 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className={styles.main}>
-        <div className={styles.description}>
-          <p>
-            Get started by editing&nbsp;
-            <code className={styles.code}>src/pages/index.tsx</code>
-          </p>
-          <div>
-            <a
-              href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
+      <main className="container mx-auto p-4">
+        {data &&
+          data?.allPosts.map((post: Post) => (
+            <div
+              onClick={() => {
+                if (+post.id === selected) {
+                  setSelected(null);
+                  setTitle("");
+                  setContent("");
+                  return;
+                }
+                setSelected(+post.id);
+                setTitle(post.title);
+                setContent(post.content);
+              }}
+              key={post.id}
+              className={`border p-4 my-12 rounded ${
+                +post.id === selected && "bg-green-200"
+              }`}
             >
-              By{' '}
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                className={styles.vercelLogo}
-                width={100}
-                height={24}
-                priority
-              />
-            </a>
-          </div>
-        </div>
-
-        <div className={styles.center}>
-          <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
-          />
-          <div className={styles.thirteen}>
-            <Image
-              src="/thirteen.svg"
-              alt="13"
-              width={40}
-              height={31}
-              priority
+              <h1>{post.title}</h1>
+              <p>{post.content}</p>
+              <p>id: {post.id}</p>
+            </div>
+          ))}
+        <hr className="h-2" />
+        <h1 className="mt-12 text-xl">
+          {selected ? "Update Post" : "Create Post"}
+        </h1>
+        <form>
+          <div className="flex flex-col">
+            <label htmlFor="title">Title</label>
+            <input
+              className="border p-4 rounded"
+              type="text"
+              placeholder="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
             />
           </div>
-        </div>
+          <div className="flex flex-col mt-4">
+            <label htmlFor="title">Content</label>
+            <input
+              className="border p-4 rounded"
+              type="text"
+              placeholder="Content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+            />
+          </div>
+        </form>
 
-        <div className={styles.grid}>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="flex flex-row">
+          <button
+            className="border p-4 m-3 rounded"
+            onClick={async () => {
+              await createPost({
+                variables: {
+                  title,
+                  content,
+                },
+              });
+              setTitle("");
+              setContent("");
+            }}
           >
-            <h2 className={inter.className}>
-              Docs <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Find in-depth information about Next.js features and&nbsp;API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
+            {CreateLoading ? "Creating..." : "Create"}
+          </button>
+          <button
+            className={`${
+              !selected ? "bg-red-300" : "bg-blue-300"
+            } border p-4 m-3 rounded block`}
+            disabled={!selected}
+            onClick={() => {
+              updatePost({
+                variables: {
+                  id: postId,
+                  title,
+                  content,
+                },
+              });
+            }}
           >
-            <h2 className={inter.className}>
-              Learn <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Learn about Next.js in an interactive course with&nbsp;quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
+            {UpdateLoading ? "Updating..." : "Update"}
+          </button>
+          <button
+            className={`${
+              !selected ? "bg-red-300" : "bg-blue-300"
+            } border p-4 m-3 rounded block`}
+            disabled={!selected}
+            onClick={() => {
+              deletePost({
+                variables: {
+                  id: postId,
+                },
+              });
+            }}
           >
-            <h2 className={inter.className}>
-              Templates <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Discover and deploy boilerplate example Next.js&nbsp;projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Deploy <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Instantly deploy your Next.js site to a shareable URL
-              with&nbsp;Vercel.
-            </p>
-          </a>
+            {DeleteLoading ? "Deleting" : "Delete"}
+          </button>
         </div>
       </main>
     </>
-  )
+  );
 }
